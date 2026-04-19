@@ -27,10 +27,24 @@ fastify.get("/feedbacks", async (request, reply) => {
 });
 
 // 3. Start Server
+/*
 const start = async () => {
   try {
     await fastify.listen({ port: 3000 });
     console.log("🚀 Server running at http://localhost:3000");
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+};*/
+
+const start = async () => {
+  try {
+    // Render uses the PORT environment variable
+    const port = process.env.PORT || 3000;
+    // For cloud environments, we need to listen on 0.0.0.0
+    await fastify.listen({ port, host: "0.0.0.0" });
+    console.log(`🚀 Server running at port ${port}`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
