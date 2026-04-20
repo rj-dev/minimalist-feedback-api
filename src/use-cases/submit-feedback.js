@@ -1,3 +1,4 @@
+const { submitFeedbackSchema } = require("./submit-feedback-validator");
 /**
  * SubmitFeedback Use Case
  * Orchestrates the creation of a feedback.
@@ -10,17 +11,30 @@ class SubmitFeedback {
   }
 
   async execute(request) {
-    const { name, email, message } = request;
+    // Validate the input data against the schema
+    // If validation fails, Zod will throw an error automatically
+    const parsedData = submitFeedbackSchema.parse(request);
+
+    const { name, email, message } = parsedData;
 
     // 1. Create the entity (this automatically triggers validation)
-    const feedback = new (require('../domain/feedback-entity')).FeedbackEntity({
+    /*
+    const feedback = new (require("../domain/feedback-entity").FeedbackEntity)({
       name,
       email,
       message,
     });
+    */
 
     // 2. Persist the data via repository contract
-    return await this.feedbackRepository.create(feedback);
+    // return await this.feedbackRepository.create(feedback);
+
+    // Persist the validated data
+    return await this.feedbackRepository.create({
+      name,
+      email,
+      message,
+    });
   }
 }
 

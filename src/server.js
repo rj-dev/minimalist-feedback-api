@@ -6,6 +6,7 @@ const { FeedbackController } = require("./infra/http/feedback-controller");
 const {
   SqliteFeedbackRepository,
 } = require("./repositories/sqlite/sqlite-feedback-repository");
+const { z } = require("zod"); // Import Zod to check instance types
 
 // 1. Dependency Injection Setup
 // const repository = new InMemoryFeedbackRepository();
@@ -37,6 +38,28 @@ const start = async () => {
     process.exit(1);
   }
 };*/
+
+// --- Global Error Handler ---
+fastify.setErrorHandler((error, request, reply) => {
+  // Catching Zod validation errors
+  if (error instanceof z.ZodError) {
+    // We map the issues to create a clean, custom error object
+    const validationErrors = error.issues.reduce((acc, issue) => {
+      const path = issue.path[0];
+      acc[path] = issue.message;
+      return acc;
+    }, {});
+
+    return reply.status(400).send({
+      message: "Validation failed.",
+      errors: validationErrors,
+    });
+  }
+
+  // Fallback for generic errors
+  fastify.log.error(error);
+  return reply.status(500).send({ message: "Internal server error." });
+});
 
 const start = async () => {
   try {
