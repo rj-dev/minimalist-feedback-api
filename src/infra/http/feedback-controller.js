@@ -13,25 +13,16 @@ class FeedbackController {
     // 1. Schema Validation (Input)
     const feedbackSchema = z.object({
       name: z.string().min(3),
-      email: z.string().email(),
+      email: z.email(),
       message: z.string().max(500),
     });
 
-    try {
-      const data = feedbackSchema.parse(request.body);
+    const data = feedbackSchema.parse(request.body);
 
-      // 2. Call the Use Case
-      const result = await this.submitFeedback.execute(data);
+    // 2. Call the Use Case
+    const result = await this.submitFeedback.execute(data);
 
-      return reply.status(201).send(result);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return reply
-          .status(400)
-          .send({ message: "Validation error", errors: error.errors });
-      }
-      return reply.status(500).send({ message: error.message });
-    }
+    return reply.status(201).send(result);
   }
 
   async list(request, reply) {
