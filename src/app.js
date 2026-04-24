@@ -1,70 +1,71 @@
+require("dotenv").config();
 const fastify = require("fastify");
 const { z } = require("zod");
 const swagger = require("@fastify/swagger");
 const swaggerUi = require("@fastify/swagger-ui");
+const jwt = require("@fastify/jwt");
 
+// Imports
 const { SubmitFeedback } = require("./use-cases/submit-feedback");
 const { FeedbackController } = require("./infra/http/feedback-controller");
 const {
   SqliteFeedbackRepository,
 } = require("./repositories/sqlite/sqlite-feedback-repository");
+const { feedbackRoutes } = require("./infra/http/routes/feedback-routes");
+const { env } = require("./env");
 
 const app = fastify({ logger: true });
 
-// Determine database path based on environment
+// 1. Dependency Injection setup
 const databasePath =
-  process.env.NODE_ENV === "test" ? "./database.test.db" : "./database.db";
-
-// 1. Dependency Injection Setup
-// const repository = new InMemoryFeedbackRepository();
-// const repository = new PrismaFeedbackRepository();
+  env.NODE_ENV === "test" ? "./database.test.db" : env.DATABASE_URL;
 const repository = new SqliteFeedbackRepository(databasePath);
 const submitFeedback = new SubmitFeedback(repository);
 const controller = new FeedbackController(submitFeedback);
 
-// Register Swagger
+// 2. Global Plugins & Routes Registration
 app.register(async function (instance) {
-  // Swagger configuration
+  // Swagger Setup
   await instance.register(swagger, {
     openapi: {
-      info: { title: "Minimalist Feedback API", version: "1.0.0" },
-    },
-  });
-
-  await instance.register(swaggerUi, {
-    routePrefix: "/docs",
-  });
-
-  // 2. Route Definitions
-  instance.post(
-    "/feedbacks",
-    {
-      schema: {
-        tags: ["Feedbacks"],
-        body: {
-          type: "object",
-          required: ["name", "email", "message"],
-          properties: {
-            name: { type: "string" },
-            email: { type: "string" },
-            message: { type: "string" },
+      info: {
+        title: "Minimalist Feedback API",
+        version: "1.0.0",
+        description: "API with JWT Authentication",
+      },
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
           },
         },
       },
     },
-    (req, res) => controller.handle(req, res),
-  );
+  });
 
-  instance.get(
-    "/feedbacks",
-    {
-      schema: { tags: ["Feedbacks"] },
-    },
-    (req, res) => controller.list(req, res),
-  );
+  await instance.register(swaggerUi, { routePrefix: "/docs" });
+
+  // Registering our new routes file and passing the controller
+  instance.register(feedbackRoutes, { controller });
 });
 
-// Global error handler for Zod validation errors
+// JWT Authentication Setup
+app.register(jwt, {
+  secret: env.JWT_SECRET,
+});
+
+// Authentication Middleware
+app.decorate("authenticate", async (request, reply) => {
+  try {
+    await request.jwtVerify();
+  } catch (err) {
+    reply.send(err);
+  }
+});
+
+// 3. Global Error Handler
 app.setErrorHandler((error, request, reply) => {
   if (error instanceof z.ZodError) {
     const validationErrors = error.issues.reduce((acc, issue) => {

@@ -47,6 +47,6 @@ describe("Submit Feedback E2E", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toBe("Validation error");
+    expect(response.body.message).toBe("Validation failed.");
   });
 });
