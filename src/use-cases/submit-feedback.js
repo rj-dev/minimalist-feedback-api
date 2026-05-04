@@ -1,4 +1,5 @@
 const { submitFeedbackSchema } = require("./submit-feedback-validator");
+const NodemailerProvider = require("../providers/mail-provider/nodemailer-provider");
 /**
  * SubmitFeedback Use Case
  * Orchestrates the creation of a feedback.
@@ -17,24 +18,35 @@ class SubmitFeedback {
 
     const { name, email, message } = parsedData;
 
-    // 1. Create the entity (this automatically triggers validation)
-    /*
-    const feedback = new (require("../domain/feedback-entity").FeedbackEntity)({
+    // 1. Save feedback to database
+    const feedback = await this.feedbackRepository.create({
       name,
       email,
       message,
     });
-    */
 
-    // 2. Persist the data via repository contract
-    // return await this.feedbackRepository.create(feedback);
+    const mailProvider = new NodemailerProvider();
 
-    // Persist the validated data
-    return await this.feedbackRepository.create({
-      name,
-      email,
-      message,
-    });
+    // 2. Send email notification
+    // We don't "await" here if we don't want to delay the API response,
+    // but usually, it's safer to await or use a background job.
+    try {
+      await mailProvider.sendMail({
+        to: "Your Name <admin@example.com>",
+        subject: "New Feedback Received!",
+        body: [
+          `<div style="font-family: sans-serif; font-size: 16px; color: #111;">`,
+          `<p><strong>From:</strong> ${name} (${email})</p>`, // Use as variáveis certas aqui
+          `<p><strong>Message:</strong> ${message}</p>`, // E aqui
+          `</div>`,
+        ].join("\n"),
+      });
+      console.log("✅ Email sent successfully!");
+    } catch (error) {
+      console.error("❌ Error sending email:", error);
+    }
+
+    return feedback;
   }
 }
 
